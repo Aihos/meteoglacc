@@ -1,103 +1,76 @@
-import Image from "next/image";
+import { fetchWeatherApi } from 'openmeteo';
+import Tun from './_component/Tun';
+import Moon from './_component/Moon';
+import ChartMeteo from './_component/chartMeteo';
 
-export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+const params = {
+  "latitude": 48.2975,
+  "longitude": -0.5583,
+  "hourly": ["temperature_2m", "relative_humidity_2m", "wind_speed_10m"],
+};
+const url = "https://api.open-meteo.com/v1/forecast";
+const responses = await fetchWeatherApi(url, params);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+// Process first location. Add a for-loop for multiple locations or weather models
+const response = responses[0];
+
+// Attributes for timezone and location
+const latitude = response.latitude();
+const longitude = response.longitude();
+const elevation = response.elevation();
+const utcOffsetSeconds = response.utcOffsetSeconds();
+
+console.log(
+	`\nCoordinates: ${latitude}°N ${longitude}°E`,
+	`\nElevation: ${elevation}m asl`,
+	`\nTimezone difference to GMT+0: ${utcOffsetSeconds}s`,
+);
+
+const hourly = response.hourly()!;
+
+// Note: The order of weather variables in the URL query and the indices below need to match!
+const weatherData = {
+	hourly: {
+		time: [...Array((Number(hourly.timeEnd()) - Number(hourly.time())) / hourly.interval())].map(
+			(_, i) => new Date((Number(hourly.time()) + i * hourly.interval() + utcOffsetSeconds) * 1000)
+		),
+		temperature_2m: hourly.variables(0)!.valuesArray(),
+		relative_humidity_2m: hourly.variables(1)!.valuesArray(),
+		wind_speed_10m: hourly.variables(2)!.valuesArray(),
+    cloud_cover: hourly.variables(2)!.valuesArray(),
+    uv_index_clear_sky_max: hourly.variables(0)!.valuesArray(),
+	},
+};
+
+
+ const hour = new Date(weatherData.hourly.time[0]).getHours();
+
+// 'weatherData' now contains a simple structure with arrays with datetime and weather data
+console.log("\nHourly data", weatherData.hourly);
+
+export default function Page() {
+
+  return(
+    <div className='relative min-h-screen'>
+      <h1>{Math.round(Number(weatherData.hourly.temperature_2m?.[0] ?? 0))}</h1>
+      {/* mettre forme  */}
+      <p>{weatherData.hourly.time[0]?.toString()}</p>
+     
+
+     
+
+      {hour > 6 && hour < 20 ? <Tun/> : <Moon/>}
+
+      <div className='min-h-[50vh] w-full absolute bottom-0 bg-white/10 backdrop-blur-sm border-1 z-2'>
+ <p>{Math.round(Number(weatherData.hourly.wind_speed_10m?.[0]))}</p>
+      <p>{Math.round(Number(weatherData.hourly.uv_index_clear_sky_max?.[0]))}</p>
+      <p>{Math.round(Number(weatherData.hourly.relative_humidity_2m?.[0]))}</p>
+      <div className='flex flex-col justify-center items-center'>
+         <ChartMeteo data={weatherData} />
+      </div>
+     
+      </div>
     </div>
-  );
-}
+
+  )
+};
